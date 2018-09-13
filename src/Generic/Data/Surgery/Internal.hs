@@ -33,7 +33,7 @@ import Generic.Data.Internal.Data (Data(Data,unData))
 import Generic.Data.Internal.Meta (MetaOf, MetaConsName, UnM1)
 import Generic.Data.Internal.Utils (coerce', absurd1)
 
--- | /A sterile operating room, where generic data comes to be altered./
+-- | /A sterile Operating Room, where generic data comes to be altered./
 --
 -- Generic representation in a simplified shape @l@ at the type level
 -- (reusing the constructors from "GHC.Generics" for convenience).
@@ -47,7 +47,7 @@ import Generic.Data.Internal.Utils (coerce', absurd1)
 -- this module (no support for 'Generic1').
 newtype OR (l :: k -> Type) (x :: k) = OR { unOR :: l x }
 
--- | /Move fresh data to the operating room, where surgeries can be applied./
+-- | /Move fresh data to the Operating Room, where surgeries can be applied./
 --
 -- Convert a generic type to a generic representation.
 --
@@ -69,7 +69,7 @@ newtype OR (l :: k -> Type) (x :: k) = OR { unOR :: l x }
 toOR :: forall a l x. (Generic a, ToORRep a l) => a -> OR l x
 toOR = OR . gLinearize . from
 
--- | /Move altered data out of the operating room, to be consumed by/
+-- | /Move altered data out of the Operating Room, to be consumed by/
 -- /some generic function./
 --
 -- Convert a generic representation to a \"synthetic\" type that behaves
@@ -125,7 +125,7 @@ fromOR' = Data . gArborify . unOR
 toOR' :: forall f l x. ToOR f l => Data f x -> OR l x
 toOR' = OR . gLinearize . unData
 
--- | /Move restored data out of the operating room and back to the real/
+-- | /Move restored data out of the Operating Room and back to the real/
 -- /world./
 --
 -- The inverse of 'toOR'.
