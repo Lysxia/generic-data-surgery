@@ -15,7 +15,11 @@
 module Generic.Data.Surgery
   ( Data
 
-    -- * Microsurgery
+  , toData
+  , fromData
+  , onData
+
+    --   Microsurgery
 
     --   One common and simple situation is to wrap a couple of fields in some
     -- newtype. You can leverage the @generic-lens@ library with the three
@@ -36,10 +40,6 @@ module Generic.Data.Surgery
     --
     -- The result is a type, that from the point of view of "GHC.Generics"
     -- looks just like @R@ but with the field @hidden@ wrapped.
-
-  , toData
-  , fromData
-  , onData
 
     -- * Getting into the operating room
   , OR
