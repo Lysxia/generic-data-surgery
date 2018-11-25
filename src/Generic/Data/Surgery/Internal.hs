@@ -182,8 +182,8 @@ type FromOR f l = (GArborify  f, Linearize f ~ l, f ~ Arborify l)
 
 --
 
--- | @'removeCField' \@n \@t@: remove the @n@-th field of type @t@
--- in a non-record single-constructor type.
+-- | @'removeCField' \@n \@t@: remove the @n@-th field, of type @t@, in a
+-- non-record single-constructor type.
 --
 -- Inverse of 'insertCField'.
 --
@@ -202,9 +202,9 @@ type FromOR f l = (GArborify  f, Linearize f ~ l, f ~ Arborify l)
 -- ==== Signature
 --
 -- @
--- OR lt x      -- Data with field
+-- 'OR' lt x      -- Data with field
 -- ->
--- (t, OR l x)  -- Field value × Data without field
+-- (t, 'OR' l x)  -- Field value × Data without field
 -- @
 --
 -- ==== Functional dependencies
@@ -240,9 +240,9 @@ removeCField (OR a) = OR <$> gRemoveField @n a
 -- ==== Signature
 --
 -- @
--- OR lt x      -- Data with field
+-- 'OR' lt x      -- Data with field
 -- ->
--- (t, OR l x)  -- Field value × Data without field
+-- (t, 'OR' l x)  -- Field value × Data without field
 -- @
 --
 -- ==== Functional dependencies
@@ -278,9 +278,9 @@ removeRField (OR a) = OR <$> gRemoveField @n a
 -- ==== Signature
 --
 -- @
--- (t, OR l x)  -- Field value × Data without field
+-- (t, 'OR' l x)  -- Field value × Data without field
 -- ->
--- OR lt x      -- Data with field
+-- 'OR' lt x      -- Data with field
 -- @
 --
 -- ==== Functional dependencies
@@ -323,9 +323,9 @@ insertCField' z (OR a) = OR (gInsertField @n z a)
 -- ==== Signature
 --
 -- @
--- (t, OR l x)  -- Field value × Data without field
+-- (t, 'OR' l x)  -- Field value × Data without field
 -- ->
--- OR lt x      -- Data with field
+-- 'OR' lt x      -- Data with field
 -- @
 --
 -- ==== Functional dependencies
@@ -370,16 +370,16 @@ insertRField' z (OR a) = OR (gInsertField @n z a)
 -- @
 -- (t -> t')  -- Field modification
 -- ->
--- OR lt  x   -- Data with field t
+-- 'OR' lt  x   -- Data with field t
 -- ->
--- OR lt' x   -- Data with field t'
+-- 'OR' lt' x   -- Data with field t'
 -- @
 --
 -- ==== Functional dependencies
 --
 -- @
--- n  lt    -> t  l
--- n  lt'   -> t' l
+-- n lt   -> t  l
+-- n lt'  -> t' l
 -- n t  l -> lt
 -- n t' l -> lt'
 -- @
@@ -413,18 +413,18 @@ modifyCField f = insertCField @n @t' . first f . removeCField @n @t
 -- @
 -- (t -> t')  -- Field modification
 -- ->
--- OR lt  x   -- Data with field t
+-- 'OR' lt  x   -- Data with field t
 -- ->
--- OR lt' x   -- Data with field t'
+-- 'OR' lt' x   -- Data with field t'
 -- @
 --
 -- ==== Functional dependencies
 --
 -- @
--- fd lt    -> n  t  l
--- fd lt'   -> n  t' l
--- n  lt    -> fd t  l
--- n  lt'   -> fd t' l
+-- fd lt     -> n  t  l
+-- fd lt'    -> n  t' l
+-- n  lt     -> fd t  l
+-- n  lt'    -> fd t' l
 -- fd n t  l -> lt
 -- fd n t' l -> lt'
 -- @
@@ -459,9 +459,9 @@ modifyRField f = insertRField @fd @n @t' . first f . removeRField @fd @n @t
 -- ==== Signature
 --
 -- @
--- OR lc x            -- Data with constructor
+-- 'OR' lc x            -- Data with constructor
 -- ->
--- Either t (OR l x)  -- Constructor (as a tuple) | Data without constructor
+-- Either t ('OR' l x)  -- Constructor (as a tuple) | Data without constructor
 -- @
 --
 -- ==== Functional dependencies
@@ -486,9 +486,9 @@ removeConstr (OR a) = bimap
 -- @t@ must be one of @()@, @Identity@, @(,)@ and actual tuples up to size 7
 -- (because that's where 'Generic' instances currently stop).
 --
--- === __Details__
---
 -- See 'removeConstr'.
+--
+-- === __Details__
 --
 -- ==== Extra functional dependency
 --
@@ -526,9 +526,9 @@ removeConstrT = removeConstr @c @t @n
 -- ==== Signature
 --
 -- @
--- Either t (OR l x)  -- Constructor (as a tuple) | Data without constructor
+-- Either t ('OR' l x)  -- Constructor (as a tuple) | Data without constructor
 -- ->
--- OR lc x            -- Data with constructor
+-- 'OR' lc x            -- Data with constructor
 -- @
 --
 -- ==== Functional dependencies
@@ -554,9 +554,9 @@ insertConstr z =
 -- @t@ must be one of @()@, @Identity@, @(,)@ and actual tuples up to size 7
 -- (because that's where 'Generic' instances currently stop).
 --
--- === __Details__
---
 -- See 'insertConstr'.
+--
+-- === __Details__
 --
 -- ==== Extra functional dependency
 --
@@ -595,11 +595,11 @@ insertConstrT = insertConstr @c @t @n
 -- ==== Signature
 --
 -- @
--- (t -> t')
+-- (t -> t')  -- Constructor modification
 -- ->
--- OR lc  x  -- Data with initial constructor
+-- 'OR' lc  x   -- Data with initial constructor
 -- ->
--- OR lc' x  -- Data with final   constructor
+-- 'OR' lc' x   -- Data with final   constructor
 -- @
 --
 -- ==== Functional dependencies
@@ -626,14 +626,15 @@ modifyConstr f = insertConstr @c @t' @n . first f . removeConstr @c @t @n
 -- @t@ and @t'@ must be one of @()@, @Identity@, @(,)@ and actual tuples up to
 -- size 7 (because that's where 'Generic' instances currently stop).
 --
--- === __Details__
---
 -- See 'modifyConstr'.
 --
--- ==== Extra functional dependency
+-- === __Details__
+--
+-- ==== Extra functional dependencies
 --
 -- @
--- l_t -> t
+-- l_t  -> t
+-- l_t' -> t'
 -- @
 modifyConstrT
   :: forall     c t t' n lc lc' l l_t l_t' x

@@ -8,9 +8,11 @@
 -- similar to the homonymous GHC extension for type classes (click on
 -- \"Details\" under each function to see those).
 --
--- Note that not all parameters to the left of a functional dependency arrow
--- need to be annotated explicitly to determine those on the right. Some can
--- also be inferred from the context.
+-- Remember that not all parameters to the left of a functional dependency
+-- arrow need to be annotated explicitly to determine those on the right. Some
+-- can also be inferred from the context.
+--
+-- Note that constructors and fields are indexed from zero.
 
 module Generic.Data.Surgery
   ( Data
