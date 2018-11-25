@@ -27,6 +27,9 @@ import GHC.Generics
 import GHC.TypeLits
 
 import Fcf
+  ( Eval, If, _If, IsBool, Pure, Pure2, Bimap, Uncurry
+  , type (=<<), type (<=<), type (<$>)
+  )
 
 import Generic.Data.Internal.Compat (Div)
 import Generic.Data.Internal.Data (Data(Data,unData))
