@@ -348,6 +348,92 @@ insertRField'
   => t -> OR l x -> OR lt x
 insertRField' z (OR a) = OR (gInsertField @n z a)
 
+-- | @'modifyCField' \@n \@t \@t'@: modify the field at position @n@ in a
+-- non-record via a function @f :: t -> t'@ (changing the type of the field).
+--
+-- === __Details__
+--
+-- ==== Type parameters
+--
+-- @
+-- n   :: 'Nat'        -- Field position
+-- t   :: 'Type'       -- Initial field type
+-- t'  :: 'Type'       -- Final   field type
+-- lt  :: k -> 'Type'  -- Row with initial field
+-- lt' :: k -> 'Type'  -- Row with final   field
+-- l   :: k -> 'Type'  -- Row without field
+-- x   :: k          -- Ignored
+-- @
+--
+-- ==== Signature
+--
+-- @
+-- (t -> t')  -- Field modification
+-- ->
+-- OR lt  x   -- Data with field t
+-- ->
+-- OR lt' x   -- Data with field t'
+-- @
+--
+-- ==== Functional dependencies
+--
+-- @
+-- n  lt    -> t  l
+-- n  lt'   -> t' l
+-- n t  l -> lt
+-- n t' l -> lt'
+-- @
+modifyCField
+  :: forall n t t' lt lt' l x
+  .  ModCField n t t' lt lt' l
+  => (t -> t') -> OR lt x -> OR lt' x
+modifyCField f = insertCField @n @t' . first f . removeCField @n @t
+
+-- | @'modifyRField' \@\"fdName\" \@n \@t \@t'@: modify the field
+-- @fdName@ at position @n@ in a record via a function @f :: t -> t'@
+-- (changing the type of the field).
+--
+-- === __Details__
+--
+-- ==== Type parameters
+--
+-- @
+-- fd  :: 'Symbol'     -- Field name
+-- n   :: 'Nat'        -- Field position
+-- t   :: 'Type'       -- Initial field type
+-- t'  :: 'Type'       -- Final   field type
+-- lt  :: k -> 'Type'  -- Row with initial field
+-- lt' :: k -> 'Type'  -- Row with final   field
+-- l   :: k -> 'Type'  -- Row without field
+-- x   :: k          -- Ignored
+-- @
+--
+-- ==== Signature
+--
+-- @
+-- (t -> t')  -- Field modification
+-- ->
+-- OR lt  x   -- Data with field t
+-- ->
+-- OR lt' x   -- Data with field t'
+-- @
+--
+-- ==== Functional dependencies
+--
+-- @
+-- fd lt    -> n  t  l
+-- fd lt'   -> n  t' l
+-- n  lt    -> fd t  l
+-- n  lt'   -> fd t' l
+-- fd n t  l -> lt
+-- fd n t' l -> lt'
+-- @
+modifyRField
+  :: forall fd n t t' lt lt' l x
+  .  ModRField fd n t t' lt lt' l
+  => (t -> t') -> OR lt x -> OR lt' x
+modifyRField f = insertRField @fd @n @t' . first f . removeRField @fd @n @t
+
 -- | @'removeConstr' \@\"C\" \@n \@t@: remove the @n@-th constructor, named @C@,
 -- with contents isomorphic to the tuple @t@.
 --
@@ -373,7 +459,7 @@ insertRField' z (OR a) = OR (gInsertField @n z a)
 -- ==== Signature
 --
 -- @
--- OR lt x            -- Data with constructor
+-- OR lc x            -- Data with constructor
 -- ->
 -- Either t (OR l x)  -- Constructor (as a tuple) | Data without constructor
 -- @
@@ -442,7 +528,7 @@ removeConstrT = removeConstr @c @t @n
 -- @
 -- Either t (OR l x)  -- Constructor (as a tuple) | Data without constructor
 -- ->
--- OR lt x            -- Data with constructor
+-- OR lc x            -- Data with constructor
 -- @
 --
 -- ==== Functional dependencies
@@ -483,6 +569,78 @@ insertConstrT
   => Either t (OR l x) -> OR lc x
 insertConstrT = insertConstr @c @t @n
 
+-- | @'modifyConstr' \@\"C\" \@n \@t \@t'@: modify the @n@-th constructor,
+-- named @C@, with contents isomorphic to the tuple @t@, to another tuple @t'@.
+--
+-- @()@ and 'Data.Functor.Identity.Identity' can be used as an empty and a
+-- singleton tuple.
+--
+-- === __Details__
+--
+-- ==== Type parameters
+--
+-- @
+-- c    :: 'Symbol'     -- Constructor name
+-- t    :: 'Type'       -- Tuple type to hold c's initial contents
+-- t'   :: 'Type'       -- Tuple type to hold c's final   contents
+-- n    :: 'Nat'        -- Constructor position
+-- lc   :: k -> 'Type'  -- Row with initial constructor
+-- lc'  :: k -> 'Type'  -- Row with final   constructor
+-- l    :: k -> 'Type'  -- Row without constructor
+-- l_t  :: k -> 'Type'  -- Initial field row of constructor c
+-- l_t' :: k -> 'Type'  -- Final   field row of constructor c
+-- x    :: k          -- Ignored
+-- @
+--
+-- ==== Signature
+--
+-- @
+-- (t -> t')
+-- ->
+-- OR lc  x  -- Data with initial constructor
+-- ->
+-- OR lc' x  -- Data with final   constructor
+-- @
+--
+-- ==== Functional dependencies
+--
+-- @
+-- c lc       -> n l l_t
+-- c lc'      -> n l l_t'
+-- n lc       -> c l l_t
+-- n lc'      -> c l l_t'
+-- c n l l_t  -> lc
+-- c n l l_t' -> lc'
+-- @
+--
+-- Note that there is no dependency to determine @t@ and @t'@.
+modifyConstr
+  :: forall    c t t' n lc lc' l l_t l_t' x
+  .  ModConstr c t t' n lc lc' l l_t l_t'
+  => (t -> t') -> OR lc x -> OR lc' x
+modifyConstr f = insertConstr @c @t' @n . first f . removeConstr @c @t @n
+
+-- | A variant of 'modifyConstr' that can infer the tuple types @t@ and @t'@ to
+-- hold the contents of the inserted constructor.
+--
+-- @t@ and @t'@ must be one of @()@, @Identity@, @(,)@ and actual tuples up to
+-- size 7 (because that's where 'Generic' instances currently stop).
+--
+-- === __Details__
+--
+-- See 'modifyConstr'.
+--
+-- ==== Extra functional dependency
+--
+-- @
+-- l_t -> t
+-- @
+modifyConstrT
+  :: forall     c t t' n lc lc' l l_t l_t' x
+  .  ModConstrT c t t' n lc lc' l l_t l_t'
+  => (t -> t') -> OR lc x -> OR lc' x
+modifyConstrT = modifyConstr @c @t @t' @n
+
 --
 
 -- | This constraint means that the (unnamed) field row @lt@ contains
@@ -500,17 +658,33 @@ type RmvRField fd n t lt l =
   )
 
 -- | This constraint means that inserting a field @t@ at position @n@ in the
--- (unnamed) field row @t@ yields row @lt@.
+-- (unnamed) field row @l@ yields row @lt@.
 type InsCField n t lt l =
   ( GInsertField n lt
   , CFieldSurgery n t lt l
   )
 
 -- | This constraint means that inserting a field @t@ named @fd@ at position
--- @n@ in the record field row @t@ yields row @lt@.
+-- @n@ in the record field row @l@ yields row @lt@.
 type InsRField fd n t lt l =
   ( GInsertField n lt
   , RFieldSurgery fd n t lt l
+  )
+
+-- | This constraint means that modifying a field @t@ to @t'@ at position @n@
+-- in the (unnamed) field row @lt@ yields row @lt'@.
+-- @l@ is the row of fields common to @lt@ and @lt'@.
+type ModCField n t t' lt lt' l =
+  ( RmvCField n t  lt  l
+  , InsCField n t' lt' l
+  )
+
+-- | This constraint means that modifying a field @t@ named @fd@ at position @n@
+-- to @t'@ in the record field row @lt@ yields row @lt'@.
+-- @l@ is the row of fields common to @lt@ and @lt'@.
+type ModRField fd n t t' lt lt' l =
+  ( RmvRField fd n t  lt  l
+  , InsRField fd n t' lt' l
   )
 
 -- | This constraint means that the constructor row @lc@ contains a constructor
@@ -529,7 +703,7 @@ type RmvConstrT c t n lc l l_t =
   , IsTuple (Arity l_t) t
   )
 
--- | This constraint means that the inserting a constructor @c@ at position @n@
+-- | This constraint means that inserting a constructor @c@ at position @n@
 -- in the constructor row @l@ yields row @lc@.
 -- Furthermore, constructor @c@ contains a field row @l_t@ compatible with the
 -- tuple type @t@.
@@ -543,6 +717,21 @@ type InsConstr c t n lc l l_t =
 type InsConstrT c t n lc l l_t =
   ( InsConstr c t n lc l l_t
   , IsTuple (Arity l_t) t
+  )
+
+-- | This constraint means that the constructor row @lc@ contains a constructor
+-- named @c@ at position @n@ of type isomorphic to @t@, and modifying it to
+-- @t'@ yields row @lc'@.
+type ModConstr c t t' n lc lc' l l_t l_t' =
+  ( RmvConstr c t  n lc  l l_t
+  , InsConstr c t' n lc' l l_t'
+  )
+
+-- | A variant of 'ModConstr' allowing @t@ and @t'@ to be inferred.
+type ModConstrT c t t' n lc lc' l l_t l_t' =
+  ( ModConstr c t t' n lc lc' l l_t l_t'
+  , IsTuple (Arity l_t) t
+  , IsTuple (Arity l_t') t'
   )
 
 type FieldSurgery n t lt l =
