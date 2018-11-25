@@ -63,7 +63,7 @@ testRoundtrip = testGroup "roundtrip"
 #endif
   , testCase "Constr-ins-rmv" $
       rt (Right A)
-         (fmap fromOR . removeConstrT @"Z" . insertConstrT @"Z" @() @0 . fmap toOR)
+         (fmap fromOR . removeConstrT @"Z" . insertConstrT @"Z" @0 @() . fmap toOR)
   ]
 
 testConsumer :: TestTree
@@ -117,7 +117,7 @@ testProducer = testGroup "producer"
 
   , testCase "removeConstr" $
       Right A @?=
-        (fmap fromOR . removeConstrT @"D" @() @3 . toOR') def
+        (fmap fromOR . removeConstrT @"D" @3 @() . toOR') def
 
     -- N.B. () (for constructor A) is inferred.
   , testCase "insertConstr" $

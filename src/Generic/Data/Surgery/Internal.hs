@@ -474,8 +474,8 @@ modifyRField f = insertRField @fd @n @t' . first f . removeRField @fd @n @t
 --
 -- Note that there is no dependency to determine @t@.
 removeConstr
-  :: forall    c t n lc l l_t x
-  .  RmvConstr c t n lc l l_t
+  :: forall    c n t lc l l_t x
+  .  RmvConstr c n t lc l l_t
   => OR lc x -> Either t (OR l x)
 removeConstr (OR a) = bimap
   (to . coerce' . gArborify @(Arborify l_t)) OR (gRemoveConstr @n a)
@@ -496,10 +496,10 @@ removeConstr (OR a) = bimap
 -- l_t -> t
 -- @
 removeConstrT
-  :: forall    c t n lc l l_t x
-  .  RmvConstrT c t n lc l l_t
+  :: forall     c n t lc l l_t x
+  .  RmvConstrT c n t lc l l_t
   => OR lc x -> Either t (OR l x)
-removeConstrT = removeConstr @c @t @n
+removeConstrT = removeConstr @c @n @t
 
 -- | @'insertConstr' \@\"C\" \@n \@t@: insert a constructor @C@ at position @n@
 -- with contents isomorphic to the tuple @t@.
@@ -541,8 +541,8 @@ removeConstrT = removeConstr @c @t @n
 --
 -- Note that there is no dependency to determine @t@.
 insertConstr
-  :: forall    c t n lc l l_t x
-  .  InsConstr c t n lc l l_t
+  :: forall    c n t lc l l_t x
+  .  InsConstr c n t lc l l_t
   => Either t (OR l x) -> OR lc x
 insertConstr z =
   OR (gInsertConstr @n
@@ -564,10 +564,10 @@ insertConstr z =
 -- l_t -> t
 -- @
 insertConstrT
-  :: forall    c t n lc l l_t x
-  .  InsConstrT c t n lc l l_t
+  :: forall     c n t lc l l_t x
+  .  InsConstrT c n t lc l l_t
   => Either t (OR l x) -> OR lc x
-insertConstrT = insertConstr @c @t @n
+insertConstrT = insertConstr @c @n @t
 
 -- | @'modifyConstr' \@\"C\" \@n \@t \@t'@: modify the @n@-th constructor,
 -- named @C@, with contents isomorphic to the tuple @t@, to another tuple @t'@.
@@ -615,10 +615,10 @@ insertConstrT = insertConstr @c @t @n
 --
 -- Note that there is no dependency to determine @t@ and @t'@.
 modifyConstr
-  :: forall    c t t' n lc lc' l l_t l_t' x
-  .  ModConstr c t t' n lc lc' l l_t l_t'
+  :: forall    c n t t' lc lc' l l_t l_t' x
+  .  ModConstr c n t t' lc lc' l l_t l_t'
   => (t -> t') -> OR lc x -> OR lc' x
-modifyConstr f = insertConstr @c @t' @n . first f . removeConstr @c @t @n
+modifyConstr f = insertConstr @c @n @t' . first f . removeConstr @c @n @t
 
 -- | A variant of 'modifyConstr' that can infer the tuple types @t@ and @t'@ to
 -- hold the contents of the inserted constructor.
@@ -637,10 +637,10 @@ modifyConstr f = insertConstr @c @t' @n . first f . removeConstr @c @t @n
 -- l_t' -> t'
 -- @
 modifyConstrT
-  :: forall     c t t' n lc lc' l l_t l_t' x
-  .  ModConstrT c t t' n lc lc' l l_t l_t'
+  :: forall     c n t t' lc lc' l l_t l_t' x
+  .  ModConstrT c n t t' lc lc' l l_t l_t'
   => (t -> t') -> OR lc x -> OR lc' x
-modifyConstrT = modifyConstr @c @t @t' @n
+modifyConstrT = modifyConstr @c @n @t @t'
 
 --
 
@@ -692,15 +692,15 @@ type ModRField fd n t t' lt lt' l =
 -- named @c@ at position @n@, and removing it from @lc@ yields row @l@.
 -- Furthermore, constructor @c@ contains a field row @l_t@ compatible with the
 -- tuple type @t@.
-type RmvConstr c t n lc l l_t =
+type RmvConstr c n t lc l l_t =
   ( GRemoveConstr n lc
   , GArborify (Arborify l_t)
-  , ConstrSurgery c t n lc l l_t
+  , ConstrSurgery c n t lc l l_t
   )
 
 -- | A variant of 'RmvConstr' allowing @t@ to be inferred.
-type RmvConstrT c t n lc l l_t =
-  ( RmvConstr c t n lc l l_t
+type RmvConstrT c n t lc l l_t =
+  ( RmvConstr c n t lc l l_t
   , IsTuple (Arity l_t) t
   )
 
@@ -708,29 +708,29 @@ type RmvConstrT c t n lc l l_t =
 -- in the constructor row @l@ yields row @lc@.
 -- Furthermore, constructor @c@ contains a field row @l_t@ compatible with the
 -- tuple type @t@.
-type InsConstr c t n lc l l_t =
+type InsConstr c n t lc l l_t =
   ( GInsertConstr n lc
   , GLinearize (Arborify l_t)
-  , ConstrSurgery c t n lc l l_t
+  , ConstrSurgery c n t lc l l_t
   )
 
 -- | A variant of 'InsConstr' allowing @t@ to be inferred.
-type InsConstrT c t n lc l l_t =
-  ( InsConstr c t n lc l l_t
+type InsConstrT c n t lc l l_t =
+  ( InsConstr c n t lc l l_t
   , IsTuple (Arity l_t) t
   )
 
 -- | This constraint means that the constructor row @lc@ contains a constructor
 -- named @c@ at position @n@ of type isomorphic to @t@, and modifying it to
 -- @t'@ yields row @lc'@.
-type ModConstr c t t' n lc lc' l l_t l_t' =
-  ( RmvConstr c t  n lc  l l_t
-  , InsConstr c t' n lc' l l_t'
+type ModConstr c n t t' lc lc' l l_t l_t' =
+  ( RmvConstr c n t  lc  l l_t
+  , InsConstr c n t' lc' l l_t'
   )
 
 -- | A variant of 'ModConstr' allowing @t@ and @t'@ to be inferred.
-type ModConstrT c t t' n lc lc' l l_t l_t' =
-  ( ModConstr c t t' n lc lc' l l_t l_t'
+type ModConstrT c n t t' lc lc' l l_t l_t' =
+  ( ModConstr c n t t' lc lc' l l_t l_t'
   , IsTuple (Arity l_t) t
   , IsTuple (Arity l_t') t'
   )
@@ -751,7 +751,7 @@ type RFieldSurgery fd n t lt l =
   , FieldSurgery n t lt l
   )
 
-type ConstrSurgery c t n lc l l_t =
+type ConstrSurgery c n t lc l l_t =
   ( Generic t
   , MatchFields (UnM1 (Rep t)) (Arborify l_t)
   , Coercible (Arborify l_t) (Rep t)
