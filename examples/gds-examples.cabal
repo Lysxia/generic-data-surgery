@@ -1,0 +1,33 @@
+name:                gds-examples
+version:             0.0.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/Lysxia/examples#readme
+license:             MIT
+author:              Li-yao Xia
+maintainer:          lysxia@gmail.com
+copyright:           2018 Li-yao Xia
+category:            Other
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  exposed-modules:
+  build-depends:
+    base >= 4.9 && < 5
+  ghc-options:         -Wall
+  default-language:    Haskell2010
+
+test-suite example-aeson
+  main-is: example-aeson.hs
+  build-depends:
+    generic-data-surgery,
+    aeson,
+    base
+  ghc-options: -Wall
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+
+source-repository head
+  type:     git
+  location: https://github.com/Lysxia/examples
