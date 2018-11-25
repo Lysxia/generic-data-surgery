@@ -437,9 +437,6 @@ modifyRField f = insertRField @fd @n @t' . first f . removeRField @fd @n @t
 -- | @'removeConstr' \@\"C\" \@n \@t@: remove the @n@-th constructor, named @C@,
 -- with contents isomorphic to the tuple @t@.
 --
--- @()@ and 'Data.Functor.Identity.Identity' can be used as an empty and a
--- singleton tuple.
---
 -- Inverse of 'insertConstr'.
 --
 -- === __Details__
@@ -483,9 +480,6 @@ removeConstr (OR a) = bimap
 -- | A variant of 'removeConstr' that can infer the tuple type @t@ to hold
 -- the contents of the removed constructor.
 --
--- @t@ must be one of @()@, @Identity@, @(,)@ and actual tuples up to size 7
--- (because that's where 'Generic' instances currently stop).
---
 -- See 'removeConstr'.
 --
 -- === __Details__
@@ -503,9 +497,6 @@ removeConstrT = removeConstr @c @n @t
 
 -- | @'insertConstr' \@\"C\" \@n \@t@: insert a constructor @C@ at position @n@
 -- with contents isomorphic to the tuple @t@.
---
--- @()@ and 'Data.Functor.Identity.Identity' can be used as an empty and a
--- singleton tuple.
 --
 -- Inverse of 'removeConstr'.
 --
@@ -551,9 +542,6 @@ insertConstr z =
 -- | A variant of 'insertConstr' that can infer the tuple type @t@ to hold
 -- the contents of the inserted constructor.
 --
--- @t@ must be one of @()@, @Identity@, @(,)@ and actual tuples up to size 7
--- (because that's where 'Generic' instances currently stop).
---
 -- See 'insertConstr'.
 --
 -- === __Details__
@@ -571,9 +559,6 @@ insertConstrT = insertConstr @c @n @t
 
 -- | @'modifyConstr' \@\"C\" \@n \@t \@t'@: modify the @n@-th constructor,
 -- named @C@, with contents isomorphic to the tuple @t@, to another tuple @t'@.
---
--- @()@ and 'Data.Functor.Identity.Identity' can be used as an empty and a
--- singleton tuple.
 --
 -- === __Details__
 --
@@ -622,9 +607,6 @@ modifyConstr f = insertConstr @c @n @t' . first f . removeConstr @c @n @t
 
 -- | A variant of 'modifyConstr' that can infer the tuple types @t@ and @t'@ to
 -- hold the contents of the inserted constructor.
---
--- @t@ and @t'@ must be one of @()@, @Identity@, @(,)@ and actual tuples up to
--- size 7 (because that's where 'Generic' instances currently stop).
 --
 -- See 'modifyConstr'.
 --

@@ -54,18 +54,40 @@ module Generic.Data.Surgery
   , OROf
 
     -- * Surgeries
+
+    -- ** Unnamed fields
   , removeCField
   , insertCField
   , insertCField'
+  , modifyCField
 
+    -- ** Named fields (records)
   , removeRField
   , insertRField
   , insertRField'
+  , modifyRField
+
+    -- ** Constructors
+
+    -- | A constructor is extracted to a "tuple", which can be any
+    -- 'GHC.Generics.Generic' single-constructor type with the same number of
+    -- fields.
+    --
+    -- Note that @()@ and 'Data.Functor.Identity.Identity' can be used as an
+    -- empty and a singleton tuple type respectively.
+    --
+    -- When the tuple type can't be inferred and doesn't really matter,
+    -- an alternative to explicit type annotations is to use the @...ConstrT@
+    -- variants of these surgeries, which are specialized to actual tuples
+    -- (@()@, 'Data.Functor.Identity.Identity', @(,)@, @(,,)@, up to 7 ---
+    -- because that's where 'GHC.Generics.Generic' instances currently stop).
 
   , removeConstr
   , insertConstr
+  , modifyConstr
   , removeConstrT
   , insertConstrT
+  , modifyConstrT
 
     -- * Constraint synonyms
 
@@ -83,12 +105,16 @@ module Generic.Data.Surgery
 
   , RmvCField
   , InsCField
+  , ModCField
   , RmvRField
   , InsRField
+  , ModRField
   , RmvConstr
   , InsConstr
+  , ModConstr
   , RmvConstrT
   , InsConstrT
+  , ModConstrT
   ) where
 
 import Generic.Data.Internal.Data
