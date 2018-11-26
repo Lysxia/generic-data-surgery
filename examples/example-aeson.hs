@@ -33,7 +33,7 @@ example
 example rec = do
   let ex1 = "{\"iden\":1,\"header1\":2,\"header2\":3}"
       ex2 = "{\"iden\":1,\"header1\":2,\"header2\":3,\"payload\":\"Nyalas\"}"
-  assertEqual (Right (rec 1 2 3 ""))      (eitherDecode ex1)
+  assertEqual (Right (rec 1 2 3 ""))       (eitherDecode ex1)
   assertEqual (Right (rec 1 2 3 "Nyalas")) (eitherDecode ex2)
 
 assertEqual :: (Eq a, Show a) => a -> a -> IO ()
@@ -107,7 +107,7 @@ data Rec3 = Rec3
 
 instance FromJSON Rec3 where
   parseJSON
-    = fmap (fromOR . modifyRField @"payload" @_ defString . toOR')
+    = fmap (fromOR . modifyRField @"payload" defString . toOR')
     . genericParseJSON defaultOptions{omitNothingFields=True}
 
 -- @genericParseJSON@ produces a @Parser (Data ...)@, where @Data ...@ is a
