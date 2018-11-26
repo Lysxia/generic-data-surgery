@@ -63,3 +63,7 @@ instance ToJSON Foo where
     (genericToJSON defaultOptions . fromOR' . insertRField @"checksum" @3 . fmap toOR)
       (checksum f, f)
 ```
+
+See also the
+[`examples/`](https://github.com/Lysxia/generic-data-surgery/tree/master/examples)
+directory in the source repo.
