@@ -28,6 +28,16 @@ test-suite example-aeson
   default-language: Haskell2010
   type: exitcode-stdio-1.0
 
+test-suite example-checksum
+  main-is: example-checksum.hs
+  build-depends:
+    generic-data-surgery,
+    aeson,
+    base
+  ghc-options: -Wall
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+
 source-repository head
   type:     git
   location: https://github.com/Lysxia/examples
