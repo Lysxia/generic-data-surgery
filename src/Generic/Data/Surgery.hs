@@ -17,8 +17,8 @@
 -- ** Surgeries from generic-data and generic-lens
 --
 -- The library <https://hackage.haskell.org/package/generic-data generic-data>
--- has a @Microsurgery@ module (since 0.4.0.0) to modify some metadata of
--- generic representations.
+-- has a "Generic.Data.Microsurgery" module (since 0.4.0.0) to modify some
+-- metadata of generic representations.
 --
 -- See also the documentation over there about surgeries using generic-lens,
 -- when you want to update fields, rather than remove or insert them.
@@ -28,7 +28,6 @@ module Generic.Data.Surgery
 
   , toData
   , fromData
-  , onData
 
     -- * Getting into the operating room
   , OR
@@ -105,6 +104,5 @@ module Generic.Data.Surgery
   ) where
 
 import Generic.Data.Types (Data(..), toData, fromData)
-import Generic.Data.Microsurgery (onData)
 
 import Generic.Data.Surgery.Internal

@@ -22,7 +22,7 @@ library
     Generic.Data.Surgery
     Generic.Data.Surgery.Internal
   build-depends:
-    generic-data >= 0.4,
+    generic-data >= 0.2,
     first-class-families >= 0.2,
     base >= 4.9 && < 5
   ghc-options:         -Wall
