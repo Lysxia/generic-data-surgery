@@ -13,23 +13,28 @@
 -- can also be inferred from the context.
 --
 -- Note that constructors and fields are indexed from zero.
---
--- ** Surgeries from generic-data and generic-lens
---
--- The library <https://hackage.haskell.org/package/generic-data generic-data>
--- has a "Generic.Data.Microsurgery" module (since 0.4.0.0) to modify some
--- metadata of generic representations.
---
--- See also the documentation over there about surgeries using generic-lens,
--- when you want to update fields, rather than remove or insert them.
 
 module Generic.Data.Surgery
-  ( Data
+  ( -- * Surgeries from generic-data and generic-lens
+    --
+    -- | The library <https://hackage.haskell.org/package/generic-data generic-data>
+    -- has a "Generic.Data.Microsurgery" module (since 0.4.0.0) to modify some
+    -- metadata of generic representations.
+    --
+    -- See also the documentation in that module about surgeries using
+    -- <https://hackage.haskell.org/package/generic-data generic-lens>,
+    -- when you want to /update/ fields, rather than remove or insert them.
+
+    -- * Synthetic data types
+
+    Data
 
   , toData
   , fromData
 
-    -- * Getting into the operating room
+    -- * Surgeries
+
+    -- ** Getting into the operating room
   , OR
 
   , toOR
@@ -38,8 +43,6 @@ module Generic.Data.Surgery
   , fromOR
 
   , OROf
-
-    -- * Surgeries
 
     -- ** Unnamed fields
   , removeCField
