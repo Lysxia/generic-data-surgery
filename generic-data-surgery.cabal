@@ -22,7 +22,7 @@ library
     Generic.Data.Surgery
     Generic.Data.Surgery.Internal
   build-depends:
-    generic-data >= 0.2,
+    generic-data >= 0.4,
     first-class-families >= 0.2,
     base >= 4.9 && < 5
   ghc-options:         -Wall
@@ -40,20 +40,6 @@ test-suite surgery-test
   ghc-options: -Wall
   default-language: Haskell2010
   type: exitcode-stdio-1.0
-
-test-suite lens-surgery-test
-  hs-source-dirs: test
-  main-is: lens-surgery.hs
-  build-depends:
-    tasty,
-    tasty-hunit,
-    generic-data-surgery,
-    generic-lens,
-    base
-  ghc-options: -Wall
-  default-language: Haskell2010
-  type: exitcode-stdio-1.0
-  buildable: False
 
 source-repository head
   type:     git
