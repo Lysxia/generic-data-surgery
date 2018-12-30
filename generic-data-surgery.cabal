@@ -1,5 +1,5 @@
 name:                generic-data-surgery
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Surgery for generic data types
 description:
   Transform data types before passing them to generic functions.
