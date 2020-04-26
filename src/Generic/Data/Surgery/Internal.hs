@@ -54,6 +54,11 @@ newtype OR (l :: k -> Type) (x :: k) = OR { unOR :: l x }
 --
 -- Convert a generic type to a generic representation.
 --
+-- When inserting or removing fields, there may be a mismatch with strict/unpacked fields.
+-- To work around this, you can switch to 'toORLazy', if your operations don't care about
+-- dealing with a normalized 'Rep' (in which all the strictness annotations have been
+-- replaced with lazy defaults).
+--
 -- === __Details__
 --
 -- ==== Type parameters
@@ -71,6 +76,32 @@ newtype OR (l :: k -> Type) (x :: k) = OR { unOR :: l x }
 -- @
 toOR :: forall a l x. (Generic a, ToORRep a l) => a -> OR l x
 toOR = OR . gLinearize . from
+
+-- | /Move normalized data to the Operating Room, where surgeries can be applied./
+--
+-- Convert a generic type to a generic representation, in which all the strictness
+-- annotations have been normalized to lazy defaults.
+--
+-- This variant is useful when one needs to operate on fields whose 'Rep' has different
+-- strictness annotations than the ones used by 'DefaultMetaSel'.
+--
+-- === __Details__
+--
+-- ==== Type parameters
+--
+-- @
+-- a :: 'Type'       -- Generic type
+-- l :: k -> 'Type'  -- Generic representation (simplified and normalized)
+-- x :: k          -- Ignored
+-- @
+--
+-- ==== Functional dependencies
+--
+-- @
+-- a -> l
+-- @
+toORLazy :: forall a l x. (Generic a, ToORRepLazy a l) => a -> OR l x
+toORLazy = OR . gLinearize @(Arborify l) . coerce' . from
 
 -- | /Move altered data out of the Operating Room, to be consumed by/
 -- /some generic function./
@@ -142,6 +173,11 @@ toOR' = OR . gLinearize . unData
 -- 'fromOR' \@a  -- with TypeApplications
 -- @
 --
+-- When inserting or removing fields, there may be a mismatch with strict/unpacked fields.
+-- To work around this, you can switch to 'fromORLazy', if your operations don't care
+-- about dealing with a normalized 'Rep' (in which all the strictness annotations have
+-- been replaced with lazy defaults).
+--
 -- === __Details__
 --
 -- ==== Type parameters
@@ -160,9 +196,45 @@ toOR' = OR . gLinearize . unData
 fromOR :: forall a l x. (Generic a, FromORRep a l) => OR l x -> a
 fromOR = to . gArborify . unOR
 
+-- | /Move normalized data out of the Operating Room and back to the real/
+-- /world./
+--
+-- The inverse of 'toORLazy'.
+--
+-- It may be useful to annotate the output type of 'fromORLazy',
+-- since the rest of the type depends on it and the only way to infer it
+-- otherwise is from the context. The following annotations are possible:
+--
+-- @
+-- 'fromORLazy' :: 'OROfLazy' a -> a
+-- 'fromORLazy' \@a  -- with TypeApplications
+-- @
+--
+-- === __Details__
+--
+-- ==== Type parameters
+--
+-- @
+-- a :: 'Type'       -- Generic type
+-- l :: k -> 'Type'  -- Generic representation (simplified and normalized)
+-- x :: k          -- Ignored
+-- @
+--
+-- ==== Functional dependencies
+--
+-- @
+-- a -> l
+-- @
+fromORLazy :: forall a l x. (Generic a, FromORRepLazy a l) => OR l x -> a
+fromORLazy = to . coerce' . gArborify @(Lazify (Rep a)) . unOR
+
 -- | The simplified generic representation type of type @a@,
 -- that 'toOR' and 'fromOR' convert to and from.
 type OROf a = OR (Linearize (Rep a)) ()
+
+-- | The simplified and normalized generic representation type of type @a@,
+-- that 'toORLazy' and 'fromORLazy' convert to and from.
+type OROfLazy a = OR (Linearize (Lazify (Rep a))) ()
 
 -- | This constraint means that @a@ is convertible /to/ its simplified
 -- generic representation. Implies @'OROf' a ~ 'OR' l ()@.
@@ -179,6 +251,26 @@ type   ToOR f l = (GLinearize f, Linearize f ~ l, f ~ Arborify l)
 -- | Similar to 'FromORRep', but as a constraint on the standard
 -- generic representation of @a@ directly, @f ~ 'Rep' a@.
 type FromOR f l = (GArborify  f, Linearize f ~ l, f ~ Arborify l)
+
+-- | This constraint means that @a@ is convertible /to/ its simplified
+-- and normalized generic representation (i.e., with all its strictness
+-- annotations normalized to lazy defaults).
+-- Implies @'OROfLazy' a ~ 'OR' l ()@.
+type   ToORRepLazy a l =   ToORLazy (Rep a) l
+
+-- | This constraint means that @a@ is convertible /from/ its simplified
+-- and normalized generic representation (i.e., with all its strictness
+-- annotations normalized to lazy defaults).
+-- Implies @'OROfLazy' a ~ 'OR' l ()@.
+type FromORRepLazy a l = FromORLazy (Rep a) l
+
+-- | Similar to 'FromLazyORRep', but as a constraint on the standard
+-- generic representation of @a@ directly, @f ~ 'Rep' a@.
+type FromORLazy f l = (FromOR (Lazify f) l, Coercible (Arborify l) f)
+
+-- | Similar to 'ToORRepLazy', but as a constraint on the standard
+-- generic representation of @a@ directly, @f ~ 'Rep' a@.
+type   ToORLazy f l = (ToOR (Lazify f) l, Coercible f (Arborify l))
 
 --
 
@@ -865,6 +957,20 @@ type Arborify' arb op n nDiv2 f g =
    <=< Bimap (arb nDiv2) (arb (n-nDiv2))
    <=< SplitAt nDiv2
    ) (op f g)
+
+type family Lazify (f :: k -> *) :: k -> *
+type instance Lazify (M1 i m f) = M1 i (LazifyMeta m) (Lazify f)
+type instance Lazify (f :*: g) = Lazify f :*: Lazify g
+type instance Lazify (f :+: g) = Lazify f :+: Lazify g
+type instance Lazify (K1 i c) = K1 i c
+type instance Lazify U1 = U1
+type instance Lazify V1 = V1
+
+type family LazifyMeta (m :: Meta) :: Meta
+type instance LazifyMeta ('MetaData n m p nt) = 'MetaData n m p nt
+type instance LazifyMeta ('MetaCons n f s) = 'MetaCons n f s
+type instance LazifyMeta ('MetaSel mn su ss ds)
+  = 'MetaSel mn 'NoSourceUnpackedness 'NoSourceStrictness 'DecidedLazy
 
 data SplitAt :: Nat -> (k -> *) -> (k -> *, k -> *) -> *
 type instance Eval (SplitAt n (f :+: g)) =

@@ -44,6 +44,11 @@ module Generic.Data.Surgery
 
   , OROf
 
+  , toORLazy
+  , fromORLazy
+
+  , OROfLazy
+
     -- ** Unnamed fields
   , removeCField
   , insertCField
@@ -87,8 +92,12 @@ module Generic.Data.Surgery
 
   , ToORRep
   , ToOR
+  , ToORRepLazy
+  , ToORLazy
   , FromORRep
   , FromOR
+  , FromORRepLazy
+  , FromORLazy
 
     -- ** Surgeries
 
