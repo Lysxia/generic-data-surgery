@@ -1,24 +1,28 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE
+    AllowAmbiguousTypes,
+    BangPatterns,
+    ConstraintKinds,
+    DataKinds,
+    DeriveGeneric,
+    FlexibleContexts,
+    FlexibleInstances,
+    LambdaCase,
+    MultiParamTypeClasses,
+    PolyKinds,
+    ScopedTypeVariables,
+    TypeApplications,
+    TypeFamilies,
+    TypeOperators,
+    TypeInType,
+    UndecidableInstances,
+    UndecidableSuperClasses #-}
 
 -- | Operate on data types: insert\/modify\/delete fields and constructors.
 
 module Generic.Data.Surgery.Internal where
 
 import Control.Monad ((<=<))
-import Data.Bifunctor (bimap, first)
+import Data.Bifunctor (first, second)
 import Data.Coerce
 import Data.Functor.Identity (Identity)
 import Data.Kind (Constraint, Type)
@@ -27,13 +31,14 @@ import GHC.Generics
 import GHC.TypeLits
 
 import Fcf
-  ( Eval, If, _If, IsBool, Pure, Pure2, Bimap, Uncurry
-  , type (=<<), type (<=<), type (<$>)
+  ( Exp, Eval, If, Pure, Pure2, Bimap, Uncurry
+  , type (@@), type (=<<), type (<=<), type (<$>)
   )
 
+import Generic.Data (MetaOf, MetaConsName)
 import Generic.Data.Internal.Compat (Div)
 import Generic.Data.Internal.Data (Data(Data,unData))
-import Generic.Data.Internal.Meta (MetaOf, MetaConsName, UnM1)
+import Generic.Data.Internal.Meta (UnM1)
 import Generic.Data.Internal.Utils (coerce', absurd1)
 
 -- | /A sterile Operating Room, where generic data comes to be altered./
@@ -579,11 +584,10 @@ modifyRField f = insertRField @fd @n @t' . first f . removeRField @fd @n @t
 --
 -- Note that there is no dependency to determine @t@.
 removeConstr
-  :: forall    c n t lc l l_t x
-  .  RmvConstr c n t lc l l_t
+  :: forall    c n t lc l x
+  .  RmvConstr c n t lc l
   => OR lc x -> Either t (OR l x)
-removeConstr (OR a) = bimap
-  (to . coerce' . gArborify @(Arborify l_t)) OR (gRemoveConstr @n a)
+removeConstr (OR a) = second OR (gRemoveConstr @n a)
 
 -- | A variant of 'removeConstr' that can infer the tuple type @t@ to hold
 -- the contents of the removed constructor.
@@ -598,8 +602,8 @@ removeConstr (OR a) = bimap
 -- l_t -> t
 -- @
 removeConstrT
-  :: forall     c n t lc l l_t x
-  .  RmvConstrT c n t lc l l_t
+  :: forall     c n t lc l x
+  .  RmvConstrT c n t lc l
   => OR lc x -> Either t (OR l x)
 removeConstrT = removeConstr @c @n @t
 
@@ -640,12 +644,10 @@ removeConstrT = removeConstr @c @n @t
 --
 -- Note that there is no dependency to determine @t@.
 insertConstr
-  :: forall    c n t lc l l_t x
-  .  InsConstr c n t lc l l_t
+  :: forall    c n t lc l x
+  .  InsConstr c n t lc l
   => Either t (OR l x) -> OR lc x
-insertConstr z =
-  OR (gInsertConstr @n
-    (bimap (gLinearize @(Arborify l_t) . coerce' . from) unOR z))
+insertConstr z = OR (gInsertConstr @n (second unOR z))
 
 -- | A variant of 'insertConstr' that can infer the tuple type @t@ to hold
 -- the contents of the inserted constructor.
@@ -660,8 +662,8 @@ insertConstr z =
 -- l_t -> t
 -- @
 insertConstrT
-  :: forall     c n t lc l l_t x
-  .  InsConstrT c n t lc l l_t
+  :: forall     c n t lc l x
+  .  InsConstrT c n t lc l
   => Either t (OR l x) -> OR lc x
 insertConstrT = insertConstr @c @n @t
 
@@ -708,8 +710,8 @@ insertConstrT = insertConstr @c @n @t
 --
 -- Note that there is no dependency to determine @t@ and @t'@.
 modifyConstr
-  :: forall    c n t t' lc lc' l l_t l_t' x
-  .  ModConstr c n t t' lc lc' l l_t l_t'
+  :: forall    c n t t' lc lc' l x
+  .  ModConstr c n t t' lc lc' l
   => (t -> t') -> OR lc x -> OR lc' x
 modifyConstr f = insertConstr @c @n @t' . first f . removeConstr @c @n @t
 
@@ -727,8 +729,8 @@ modifyConstr f = insertConstr @c @n @t' . first f . removeConstr @c @n @t
 -- l_t' -> t'
 -- @
 modifyConstrT
-  :: forall     c n t t' lc lc' l l_t l_t' x
-  .  ModConstrT c n t t' lc lc' l l_t l_t'
+  :: forall     c n t t' lc lc' l x
+  .  ModConstrT c n t t' lc lc' l
   => (t -> t') -> OR lc x -> OR lc' x
 modifyConstrT = modifyConstr @c @n @t @t'
 
@@ -737,28 +739,28 @@ modifyConstrT = modifyConstr @c @n @t @t'
 -- | This constraint means that the (unnamed) field row @lt@ contains
 -- a field of type @t@ at position @n@, and removing it yields row @l@.
 type RmvCField n t lt l =
-  ( GRemoveField n lt
+  ( GRemoveField n t lt l
   , CFieldSurgery n t lt l
   )
 
 -- | This constraint means that the record field row @lt@ contains a field of
 -- type @t@ named @fd@ at position @n@, and removing it yields row @l@.
 type RmvRField fd n t lt l =
-  ( GRemoveField n lt
+  ( GRemoveField n t lt l
   , RFieldSurgery fd n t lt l
   )
 
 -- | This constraint means that inserting a field @t@ at position @n@ in the
 -- (unnamed) field row @l@ yields row @lt@.
 type InsCField n t lt l =
-  ( GInsertField n lt
+  ( GInsertField n t l lt
   , CFieldSurgery n t lt l
   )
 
 -- | This constraint means that inserting a field @t@ named @fd@ at position
 -- @n@ in the record field row @l@ yields row @lt@.
 type InsRField fd n t lt l =
-  ( GInsertField n lt
+  ( GInsertField n t l lt
   , RFieldSurgery fd n t lt l
   )
 
@@ -782,52 +784,50 @@ type ModRField fd n t t' lt lt' l =
 -- named @c@ at position @n@, and removing it from @lc@ yields row @l@.
 -- Furthermore, constructor @c@ contains a field row @l_t@ compatible with the
 -- tuple type @t@.
-type RmvConstr c n t lc l l_t =
-  ( GRemoveConstr n lc
-  , GArborify (Arborify l_t)
-  , ConstrSurgery c n t lc l l_t
+type RmvConstr c n t lc l =
+  ( GRemoveConstr n t lc l
+  , ConstrSurgery c n t lc l (Eval (ConstrAt n lc))
   )
 
 -- | A variant of 'RmvConstr' allowing @t@ to be inferred.
-type RmvConstrT c n t lc l l_t =
-  ( RmvConstr c n t lc l l_t
-  , IsTuple (Arity l_t) t
+type RmvConstrT c n t lc l =
+  ( RmvConstr c n t lc l
+  , IsTuple (Arity (Eval (ConstrAt n lc))) t
   )
 
 -- | This constraint means that inserting a constructor @c@ at position @n@
 -- in the constructor row @l@ yields row @lc@.
 -- Furthermore, constructor @c@ contains a field row @l_t@ compatible with the
 -- tuple type @t@.
-type InsConstr c n t lc l l_t =
-  ( GInsertConstr n lc
-  , GLinearize (Arborify l_t)
-  , ConstrSurgery c n t lc l l_t
+type InsConstr c n (t :: Type) lc l =
+  ( GInsertConstr n t l lc
+  , ConstrSurgery c n t lc l (Eval (ConstrAt n lc))
   )
 
 -- | A variant of 'InsConstr' allowing @t@ to be inferred.
-type InsConstrT c n t lc l l_t =
-  ( InsConstr c n t lc l l_t
-  , IsTuple (Arity l_t) t
+type InsConstrT c n t lc l =
+  ( InsConstr c n t lc l
+  , IsTuple (Arity (Eval (ConstrAt n lc))) t
   )
 
 -- | This constraint means that the constructor row @lc@ contains a constructor
 -- named @c@ at position @n@ of type isomorphic to @t@, and modifying it to
 -- @t'@ yields row @lc'@.
-type ModConstr c n t t' lc lc' l l_t l_t' =
-  ( RmvConstr c n t  lc  l l_t
-  , InsConstr c n t' lc' l l_t'
+type ModConstr c n t t' lc lc' l =
+  ( RmvConstr c n t  lc  l
+  , InsConstr c n t' lc' l
   )
 
 -- | A variant of 'ModConstr' allowing @t@ and @t'@ to be inferred.
-type ModConstrT c n t t' lc lc' l l_t l_t' =
-  ( ModConstr c n t t' lc lc' l l_t l_t'
-  , IsTuple (Arity l_t) t
-  , IsTuple (Arity l_t') t'
+type ModConstrT c n t t' lc lc' l =
+  ( ModConstr c n t t' lc lc' l
+  , IsTuple (Arity (Eval (ConstrAt n lc ))) t
+  , IsTuple (Arity (Eval (ConstrAt n lc'))) t'
   )
 
 type FieldSurgery n t lt l =
   ( t ~ Eval (FieldTypeAt n lt)
-  , l ~ Eval (RemoveField n lt)
+  , l ~ Eval (RemoveField n t lt)
   )
 
 type CFieldSurgery n t lt l =
@@ -843,28 +843,25 @@ type RFieldSurgery fd n t lt l =
 
 type ConstrSurgery c n t lc l l_t =
   ( Generic t
-  , MatchFields (UnM1 (Rep t)) (Arborify l_t)
-  , Coercible (Arborify l_t) (Rep t)
+  , MatchFields (Linearize (UnM1 (Rep t))) l_t
   , n ~ Eval (ConstrIndex c lc)
   , c ~ MetaConsName (MetaOf l_t)
-  , l_t ~ Linearize (Arborify l_t)
-  , l_t ~ Eval (ConstrAt n lc)
-  , lc ~ Eval (InsertConstr n l_t l)
-  , l ~ Eval (RemoveConstr n lc)
+  , lc ~ Eval (InsertUConstrAtL n l_t l)
+  , l ~ Eval (RemoveUConstrAt_ n lc)
   )
 
 --
 
-type family   Linearize (f :: k -> *) :: k -> *
+type family   Linearize (f :: k -> Type) :: k -> Type
 type instance Linearize (M1 D m f) = M1 D m (LinearizeSum f V1)
 type instance Linearize (M1 C m f) = M1 C m (LinearizeProduct f U1)
 
-type family   LinearizeSum (f :: k -> *) (tl :: k -> *) :: k -> *
+type family   LinearizeSum (f :: k -> Type) (tl :: k -> Type) :: k -> Type
 type instance LinearizeSum V1 tl = tl
 type instance LinearizeSum (f :+: g) tl = LinearizeSum f (LinearizeSum g tl)
 type instance LinearizeSum (M1 c m f) tl = M1 c m (LinearizeProduct f U1) :+: tl
 
-type family   LinearizeProduct (f :: k -> *) (tl :: k -> *) :: k -> *
+type family   LinearizeProduct (f :: k -> Type) (tl :: k -> Type) :: k -> Type
 type instance LinearizeProduct U1 tl = tl
 type instance LinearizeProduct (f :*: g) tl = LinearizeProduct f (LinearizeProduct g tl)
 type instance LinearizeProduct (M1 s m f) tl = M1 s m f :*: tl
@@ -948,18 +945,18 @@ instance (GArborifyProduct g tl, GArborifyProduct f (LinearizeProduct g tl))
 instance GArborifyProduct (M1 s m f) tl where
   gArborifyProduct (a :*: c) = (a, c)
 
-type family   Arborify (f :: k -> *) :: k -> *
+type family   Arborify (f :: k -> Type) :: k -> Type
 type instance Arborify (M1 D m f) = M1 D m (Eval (ArborifySum (CoArity f) f))
 type instance Arborify (M1 C m f) = M1 C m (Eval (ArborifyProduct (Arity f) f))
 
-data ArborifySum (n :: Nat) (f :: k -> *) :: (k -> *) -> *
+data ArborifySum (n :: Nat) (f :: k -> Type) :: Exp (k -> Type)
 type instance Eval (ArborifySum n V1) = V1
 type instance Eval (ArborifySum n (f :+: g)) =
   Eval (If (n == 1)
     (ArborifyProduct (Arity f) f)
     (Arborify' ArborifySum (:+:) n (Div n 2) f g))
 
-data ArborifyProduct (n :: Nat) (f :: k -> *) :: (k -> *) -> *
+data ArborifyProduct (n :: Nat) (f :: k -> Type) :: Exp (k -> Type)
 type instance Eval (ArborifyProduct n (M1 C s f)) = M1 C s (Eval (ArborifyProduct n f))
 type instance Eval (ArborifyProduct n U1) = U1
 type instance Eval (ArborifyProduct n (f :*: g)) =
@@ -974,7 +971,7 @@ type Arborify' arb op n nDiv2 f g =
    <=< SplitAt nDiv2
    ) (op f g)
 
-type family Lazify (f :: k -> *) :: k -> *
+type family Lazify (f :: k -> Type) :: k -> Type
 type instance Lazify (M1 i m f) = M1 i (LazifyMeta m) (Lazify f)
 type instance Lazify (f :*: g) = Lazify f :*: Lazify g
 type instance Lazify (f :+: g) = Lazify f :+: Lazify g
@@ -988,7 +985,7 @@ type instance LazifyMeta ('MetaCons n f s) = 'MetaCons n f s
 type instance LazifyMeta ('MetaSel mn su ss ds)
   = 'MetaSel mn 'NoSourceUnpackedness 'NoSourceStrictness 'DecidedLazy
 
-data SplitAt :: Nat -> (k -> *) -> (k -> *, k -> *) -> *
+data SplitAt :: Nat -> (k -> Type) -> Exp (k -> Type, k -> Type)
 type instance Eval (SplitAt n (f :+: g)) =
   Eval (If (n == 0)
     (Pure '(V1, f :+: g))
@@ -998,25 +995,145 @@ type instance Eval (SplitAt n (f :*: g)) =
     (Pure '(U1, f :*: g))
     (Bimap (Pure2 (:*:) f) Pure =<< SplitAt (n-1) g))
 
-data FieldTypeAt (n :: Nat) (f :: k -> *) :: * -> *
+-- * Surgeries
+
+-- | Kind of surgeries: operations on generic representations of types.
+--
+-- Treat this as an abstract kind (don't pay attention to its definition).
+--
+-- === __Implementation details__
+--
+-- The name @Surgery@ got taken first by generic-data.
+--
+-- @k@ is the kind of the extra parameter reserved for @Generic1@,
+-- which we just don't use.
+type MajorSurgery k = MajorSurgery_ k
+
+-- Whenever you see
+--   data ... :: MajorSurgery k
+-- mentally expand it to
+--   data ... (f :: k -> Type) :: Exp (k -> Type)
+
+-- | @Operate f s@. Apply a surgery @s@ to a generic representation @f@
+-- (e.g., @f = 'Rep' a@ for some 'Generic' type @a@).
+--
+-- The first argument is the generic representation;
+-- the second argument is the surgery, which typically has the more complex
+-- syntax, which is why this reverse application order was chosen.
+type Operate (f :: k -> Type) (s :: MajorSurgery k) = Operate_ f s
+
+-- | Internal definition of 'MajorSurgery'.
+type MajorSurgery_ k = (k -> Type) -> Exp (k -> Type)
+
+-- | Internal definition of 'Operate'.
+type Operate_ (f :: k -> Type) (s :: MajorSurgery k) = Arborify (OperateL (Linearize f) s)
+
+-- | Apply a surgery @s@ to a linearized generic representation @l@.
+type OperateL (l :: k -> Type) (s :: MajorSurgery k) = Eval (s l)
+
+-- | Composition of surgeries (left-to-right).
+--
+-- === Note
+--
+-- Surgeries work on normalized representations, so 'Operate', which applies
+-- a surgery to a generic representation, inserts normalization steps before
+-- and after the surgery. This means that @'Operate' r (s1 ':>>' s2)@ is not quite
+-- the same as @'Operate' ('Operate' r s1) s2@. Instead, the latter is
+-- equivalent to @'Operate' r (s1 ':>>' 'Suture' ':>>' s2)@, where 'Suture'
+-- inserts some intermediate normalization steps.
+data (:>>) :: MajorSurgery k -> MajorSurgery k -> MajorSurgery k
+type instance Eval ((s :>> t) l) = Eval (t (Eval (s l)))
+-- Note: This is a specialization of @(>=>)@ in Fcf.
+
+type instance PerformL l (s :>> t) = (PerformL l s, PerformL (Eval (s l)) t)
+
+infixl 1 :>>
+
+-- | The identity surgery: doesn't do anything.
+data IdSurgery :: MajorSurgery k
+type instance Eval (IdSurgery l) = l
+type instance PerformL l IdSurgery = ()
+
+-- | Use this if a patient ever needs to go out and back into the operating
+-- room, when it's not just to undo the surgery up to that point.
+data Suture :: MajorSurgery k
+type instance Eval (Suture l) = Linearize (Arborify l)
+
+-- Now we can compose surgeries into complex ones, we can relate the input and
+-- output of a whole surgery.
+--
+-- We still need to augment this with run-time information to 'Perform' the
+-- surgery at the term level.
+--
+-- We might also need to interpret surgeries backwards (this is not entirely
+-- symmetrical, a "removal" contains less information than an "insertion").
+
+type family PerformL (l :: k -> Type) (s :: MajorSurgery k) :: Constraint
+
+-- | A constraint @Perform r s@ means that the surgery @s@ can be applied to
+-- the generic representation @r@.
+class    Perform_ r s => Perform (r :: k -> Type) (s :: MajorSurgery k)
+instance Perform_ r s => Perform (r :: k -> Type) (s :: MajorSurgery k)
+
+type Perform_ (r :: k -> Type) (s :: MajorSurgery k) =
+  ( PerformL (Linearize r) s
+  , ToOR r (Linearize r)
+  , FromOR (Operate r s) (OperateL (Linearize r) s)
+  )
+
+data FieldTypeAt (n :: Nat) (f :: k -> Type) :: Exp Type
 type instance Eval (FieldTypeAt n (M1 i c f)) = Eval (FieldTypeAt n f)
 type instance Eval (FieldTypeAt n (f :+: V1)) = Eval (FieldTypeAt n f)
 type instance Eval (FieldTypeAt n (f :*: g)) =
   Eval (If (n == 0) (Pure (FieldTypeOf f)) (FieldTypeAt (n-1) g))
 
-type family   FieldTypeOf (f :: k -> *) :: *
+type family   FieldTypeOf (f :: k -> Type) :: Type
 type instance FieldTypeOf (M1 s m (K1 i a)) = a
 
-data RemoveField (n :: Nat) (f :: k -> *) :: (k -> *) -> *
-type instance Eval (RemoveField n (M1 i m f)) = M1 i m (Eval (RemoveField n f))
-type instance Eval (RemoveField n (f :+: V1)) = Eval (RemoveField n f) :+: V1
-type instance Eval (RemoveField n (f :*: g)) =
-  Eval (If (n == 0) (Pure g) ((:*:) f <$> RemoveField (n-1) g))
+data FieldNameAt (n :: Nat) (f :: k -> Type) :: Exp (Maybe Symbol)
+type instance Eval (FieldNameAt n (M1 i c f)) = Eval (FieldNameAt n f)
+type instance Eval (FieldNameAt n (f :+: V1)) = Eval (FieldNameAt n f)
+type instance Eval (FieldNameAt n (f :*: g)) =
+  Eval (If (n == 0) (FieldNameOf f) (FieldNameAt (n-1) g))
+
+data FieldNameOf (f :: k -> Type) :: Exp (Maybe Symbol)
+type instance Eval (FieldNameOf (M1 S ('MetaSel mn _ _ _) _)) = mn
+
+data RemoveField (n :: Nat) (a :: Type) :: MajorSurgery k
+type instance Eval (RemoveField n a f) = Eval (RemoveField_ n f)
+
+-- | Like 'RemoveField' but without the explicit field type.
+data RemoveField_ (n :: Nat) :: MajorSurgery k
+type instance Eval (RemoveField_ n (M1 i m f)) = M1 i m (Eval (RemoveField_ n f))
+type instance Eval (RemoveField_ n (f :+: V1)) = Eval (RemoveField_ n f) :+: V1
+type instance Eval (RemoveField_ n (f :*: g)) =
+  Eval (If (n == 0) (Pure g) ((:*:) f <$> RemoveField_ (n-1) g))
+
+type instance PerformL lt (RemoveField n a) = PerformL lt (RemoveFieldAt n (FieldNameAt n @@ lt) a)
+
+data RemoveFieldAt (n :: Nat) (fd :: Maybe Symbol) (a :: Type) :: MajorSurgery k
+type instance PerformL lt (RemoveFieldAt n fd a) =
+  PerformLRemoveFieldAt n fd a lt (Eval (RemoveField_ n lt))
+
+type PerformLRemoveFieldAt_ n fd t lt l =
+  ( GRemoveField n t lt l
+  , t ~ Eval (FieldTypeAt n lt)
+  , lt ~ Eval (InsertField n fd t l)
+  )
+
+class    PerformLRemoveFieldAt_ n fd t lt l => PerformLRemoveFieldAt n fd t lt l
+instance PerformLRemoveFieldAt_ n fd t lt l => PerformLRemoveFieldAt n fd t lt l
+
+data RemoveRField (fd :: Symbol) (a :: Type) :: MajorSurgery k
+type instance Eval (RemoveRField fd a f) = Eval (RemoveField_ (Eval (FieldIndex fd f)) f)
+
+type instance PerformL lt (RemoveRField fd a) =
+  PerformL lt (RemoveFieldAt (FieldIndex fd @@ lt) ('Just fd) a)
 
 type DefaultMetaSel field
   = 'MetaSel field 'NoSourceUnpackedness 'NoSourceStrictness 'DecidedLazy
 
-data InsertField (n :: Nat) (fd :: Maybe Symbol) (t :: *) (f :: k -> *) :: (k -> *) -> *
+data InsertField (n :: Nat) (fd :: Maybe Symbol) (t :: Type) :: MajorSurgery k
 type instance Eval (InsertField n fd t (M1 D m f)) = M1 D m (Eval (InsertField n fd t f))
 type instance Eval (InsertField n fd t (M1 C m f)) = M1 C m (Eval (InsertField n fd t f))
 type instance Eval (InsertField n fd t (f :+: V1)) = Eval (InsertField n fd t f) :+: V1
@@ -1026,11 +1143,28 @@ type instance Eval (InsertField n fd t (f :*: g)) =
     ((:*:) f <$> InsertField (n-1) fd t g))
 type instance Eval (InsertField 0 fd t U1) = M1 S (DefaultMetaSel fd) (K1 R t) :*: U1
 
-data Succ :: Nat -> Nat -> *
+type instance PerformL l (InsertField n fd t) = PerformLInsert n fd t l (Eval (InsertField n fd t l))
+
+type PerformLInsert_ n fd t l tl =
+  ( GInsertField n t l tl
+  , l ~ Eval (RemoveField_ n tl)
+  , tl ~ Eval (InsertField n fd t l)
+  , CheckField n fd tl
+  , t ~ Eval (FieldTypeAt n tl)
+  )
+
+class    PerformLInsert_ n fd t l tl => PerformLInsert n fd t l tl
+instance PerformLInsert_ n fd t l tl => PerformLInsert n fd t l tl
+
+type family CheckField (n :: Nat) (fd :: Maybe Symbol) (tl :: k -> Type) :: Constraint where
+  CheckField n 'Nothing tl = ()
+  CheckField n ('Just fd) tl = (n ~ Eval (FieldIndex fd tl))
+
+data Succ :: Nat -> Exp Nat
 type instance Eval (Succ n) = 1 + n
 
 -- | Position of a record field
-data FieldIndex (field :: Symbol) (f :: k -> *) :: Nat -> *
+data FieldIndex (field :: Symbol) (f :: k -> Type) :: Exp Nat
 type instance Eval (FieldIndex field (M1 D m f)) = Eval (FieldIndex field f)
 type instance Eval (FieldIndex field (M1 C m f)) = Eval (FieldIndex field f)
 type instance Eval (FieldIndex field (f :+: V1)) = Eval (FieldIndex field f)
@@ -1038,7 +1172,7 @@ type instance Eval (FieldIndex field (M1 S ('MetaSel ('Just field') su ss ds) f 
   = Eval (If (field == field') (Pure 0) (Succ =<< FieldIndex field g))
 
 -- | Number of fields of a single constructor
-type family   Arity (f :: k -> *) :: Nat
+type family   Arity (f :: k -> Type) :: Nat
 type instance Arity (M1 d m f) = Arity f
 type instance Arity (f :+: V1) = Arity f
 type instance Arity (f :*: g) = Arity f + Arity g
@@ -1046,113 +1180,208 @@ type instance Arity (K1 i c) = 1
 type instance Arity U1 = 0
 
 -- | Number of constructors of a data type
-type family   CoArity (f :: k -> *) :: Nat
+type family   CoArity (f :: k -> Type) :: Nat
 type instance CoArity (M1 D m f) = CoArity f
 type instance CoArity (M1 C m f) = 1
 type instance CoArity V1         = 0
 type instance CoArity (f :+: g)  = CoArity f + CoArity g
 
-class GRemoveField (n :: Nat) f where
-  gRemoveField :: f x -> (Eval (FieldTypeAt n f), Eval (RemoveField n f) x)
+class GRemoveField (n :: Nat) a f g where
+  gRemoveField :: f x -> (a, g x)
 
-instance GRemoveField n f => GRemoveField n (M1 i c f) where
+instance GRemoveField n a f g => GRemoveField n a (M1 i c f) (M1 i c g) where
   gRemoveField (M1 a) = M1 <$> gRemoveField @n a
 
-instance GRemoveField n f => GRemoveField n (f :+: V1) where
+-- Only single-constructor types are supported for the moment.
+instance GRemoveField n a f g => GRemoveField n a (f :+: V1) (g :+: V1) where
   gRemoveField (L1 a) = L1 <$> gRemoveField @n a
   gRemoveField (R1 v) = absurd1 v
 
-instance (If (n == 0) (() :: Constraint) (GRemoveField (n-1) g), IsBool (n == 0))
-  => GRemoveField n (M1 s m (K1 i t) :*: g) where
-  gRemoveField (a@(M1 (K1 t)) :*: b) = _If @(n == 0)
-    (t, b)
-    ((a :*:) <$> gRemoveField @(n-1) b)
+instance GRemoveField 0 a (M1 s m (K1 i a) :*: f) f where
+  gRemoveField (M1 (K1 t) :*: b) = (t, b)
 
-class GInsertField (n :: Nat) f where
-  gInsertField :: Eval (FieldTypeAt n f) -> Eval (RemoveField n f) x -> f x
+instance {-# OVERLAPPABLE #-}
+  ( (n == 0) ~ 'False
+  , f0g ~ (f0 :*: g)
+  , GRemoveField (n-1) a f g
+  ) => GRemoveField n a (f0 :*: f) f0g where
+  gRemoveField (a :*: b) = (a :*:) <$> gRemoveField @(n-1) b
 
-instance GInsertField n f => GInsertField n (M1 i c f) where
+class GInsertField (n :: Nat) a f g where
+  gInsertField :: a -> f x -> g x
+
+instance GInsertField n a f g => GInsertField n a (M1 i c f) (M1 i c g) where
   gInsertField t (M1 a) = M1 (gInsertField @n t a)
 
-instance GInsertField n f => GInsertField n (f :+: V1) where
+instance GInsertField n a f g => GInsertField n a (f :+: V1) (g :+: V1) where
   gInsertField t (L1 a) = L1 (gInsertField @n t a)
   gInsertField _ (R1 v) = absurd1 v
 
-instance (If (n == 0) (() :: Constraint) (GInsertField (n-1) g), IsBool (n == 0))
-  => GInsertField n (M1 s m (K1 i t) :*: g) where
-  gInsertField t ab = _If @(n == 0)
-    (M1 (K1 t) :*: ab)
-    (let a :*: b = ab in a :*: gInsertField @(n-1) t b)
+instance GInsertField 0 a f (M1 s m (K1 i a) :*: f) where
+  gInsertField t ab = M1 (K1 t) :*: ab
 
-data ConstrAt (n :: Nat) (f :: k -> *) :: (k -> *) -> *
+instance {-# OVERLAPPABLE #-}
+  ( (n == 0) ~ 'False
+  , f0f ~ (f0 :*: f)
+  , GInsertField (n-1) a f g
+  ) => GInsertField n a f0f (f0 :*: g) where
+  gInsertField t (a :*: b) = a :*: gInsertField @(n-1) t b
+
+data ConstrAt (n :: Nat) (f :: k -> Type) :: Exp (k -> Type)
 type instance Eval (ConstrAt n (M1 i m f)) = Eval (ConstrAt n f)
 type instance Eval (ConstrAt n (f :+: g)) =
   Eval (If (n == 0) (Pure f) (ConstrAt (n-1) g))
 
-data RemoveConstr (n :: Nat) (f :: k -> *) :: (k -> *) -> *
-type instance Eval (RemoveConstr n (M1 i m f)) = M1 i m (Eval (RemoveConstr n f))
-type instance Eval (RemoveConstr n (f :+: g)) =
-  Eval (If (n == 0) (Pure g) ((:+:) f <$> RemoveConstr (n-1) g))
+data RemoveConstr (c :: Symbol) (t :: Type) :: MajorSurgery k
+type instance Eval (RemoveConstr c t l) = Eval (RemoveConstrAt c (ConstrIndex c @@ l) t l)
 
-data InsertConstr (n :: Nat) (t :: k -> *) (f :: k -> *) :: (k -> *) -> *
-type instance Eval (InsertConstr n t (M1 i m f)) = M1 i m (Eval (InsertConstr n t f))
-type instance Eval (InsertConstr n t (f :+: g)) =
-  Eval (If (n == 0) (Pure (t :+: (f :+: g))) ((:+:) f <$> InsertConstr (n-1) t g))
-type instance Eval (InsertConstr 0 t V1) = t :+: V1
+type instance PerformL lc (RemoveConstr c t) = PerformLRemoveConstr lc c (ConstrIndex c @@ lc) t
 
-data ConstrIndex (con :: Symbol) (f :: k -> *) :: Nat -> *
+type PerformLRemoveConstr lc c n (t :: Type) =
+  PerformLRemoveConstrAt c n t (Eval (ConstrAt n lc)) lc (Eval (RemoveUConstrAt_ n lc))
+
+type PerformLRemoveConstrAt_ c n t l_t lc l =
+  ( GRemoveConstr n t lc l
+  -- , l_t ~ Linearize (Arborify l_t)
+  , c ~ MetaConsName (MetaOf l_t)
+  , lc ~ Eval (InsertUConstrAtL n l_t l)
+  , MatchFields (Linearize (UnM1 (Rep t))) l_t
+  , Arity l_t ~ Arity (Linearize (UnM1 (Rep t)))
+  )
+
+class    PerformLRemoveConstrAt_ c n t l_t lc l => PerformLRemoveConstrAt c n (t :: Type) l_t lc l
+instance PerformLRemoveConstrAt_ c n t l_t lc l => PerformLRemoveConstrAt c n (t :: Type) l_t lc l
+
+data RemoveConstrAt (c :: Symbol) (n :: Nat) (t :: Type) :: MajorSurgery k
+type instance Eval (RemoveConstrAt _ n t l) = Eval (RemoveUConstrAt n t l)
+
+data RemoveUConstrAt (n :: Nat) (t :: Type) :: MajorSurgery k
+type instance Eval (RemoveUConstrAt n _ l) = Eval (RemoveUConstrAt_ n l)
+
+-- | Like 'RemoveConstr', but without the explicit constructor type.
+data RemoveUConstrAt_ (n :: Nat) :: MajorSurgery k
+type instance Eval (RemoveUConstrAt_ n (M1 i m f)) = M1 i m (Eval (RemoveUConstrAt_ n f))
+type instance Eval (RemoveUConstrAt_ n (f :+: g)) =
+  Eval (If (n == 0) (Pure g) ((:+:) f <$> RemoveUConstrAt_ (n-1) g))
+
+-- | This is polymorphic to allow different ways of specifying the inserted constructor.
+--
+-- If @sym@ (the kind of the constructor name @c@) is:
+--
+-- - 'Symbol': treat it like a regular prefix constructor.
+-- - TODO Infix constructors and their fixities.
+--
+-- @t@ must be a single-constructor type, then we reuse its generic
+-- representation for the new constructor, only replacing its constructor name
+-- with @c@.
+data InsertConstrAt (c :: sym) (n :: Nat) (t :: ty) :: MajorSurgery k
+type instance Eval (InsertConstrAt c n t l) = Eval (InsertUConstrAtL n (ConGraft c t) l)
+
+type family ConGraft (c :: sym) (t :: ty) :: k -> Type
+type instance ConGraft c (t :: Type) = RenameCon c (Linearize (UnM1 (Rep t)))
+
+type family RenameCon (c :: sym) (t :: k -> Type) :: k -> Type
+type instance RenameCon c (M1 C m f) = M1 C (RenameMeta c m) f
+
+type family RenameMeta (c :: sym) (m :: Meta) :: Meta
+type instance RenameMeta (s :: Symbol) ('MetaCons _ _ r) = 'MetaCons s 'PrefixI r
+
+type instance PerformL l (InsertConstrAt c n t) = PerformLInsertConstrAt0 l c n t
+
+type PerformLInsertConstrAt0 l c n t =
+  PerformLInsertConstrAt c n t (ConGraft c t) l (Eval (InsertUConstrAtL n (ConGraft c t) l))
+
+type PerformLInsertConstrAt_ c n t l_t l lc =
+  ( GInsertConstr n t l lc
+  , c ~ MetaConsName (MetaOf l_t)
+  , n ~ (ConstrIndex c @@ lc)
+  , l_t ~ (ConstrAt n @@ lc)
+  , l ~ Eval (RemoveUConstrAt_ n lc)
+  , MatchFields (Linearize (UnM1 (Rep t))) l_t
+  )
+
+class    PerformLInsertConstrAt_ c n t l_t l lc => PerformLInsertConstrAt c n t l_t l lc
+instance PerformLInsertConstrAt_ c n t l_t l lc => PerformLInsertConstrAt c n t l_t l lc
+
+data InsertUConstrAt (n :: Nat) (t :: Type) :: MajorSurgery k
+type instance Eval (InsertUConstrAt n t l) = Eval (InsertUConstrAtL n (Linearize (UnM1 (Rep t))) l)
+
+data InsertUConstrAtL (n :: Nat) (t :: k -> Type) :: MajorSurgery k
+type instance Eval (InsertUConstrAtL n t (M1 i m f)) = M1 i m (Eval (InsertUConstrAtL n t f))
+type instance Eval (InsertUConstrAtL n t (f :+: g)) =
+  Eval (If (n == 0) (Pure (t :+: (f :+: g))) ((:+:) f <$> InsertUConstrAtL (n-1) t g))
+type instance Eval (InsertUConstrAtL 0 t V1) = t :+: V1
+
+data ConstrIndex (con :: Symbol) (f :: k -> Type) :: Exp Nat
 type instance Eval (ConstrIndex con (M1 D m f)) = Eval (ConstrIndex con f)
 type instance Eval (ConstrIndex con (M1 C ('MetaCons con' fx s) f :+: g)) =
   Eval (If (con == con') (Pure 0) (Succ =<< ConstrIndex con g))
 
-class GRemoveConstr (n :: Nat) f where
-  gRemoveConstr :: f x -> Either (Eval (ConstrAt n f) x) (Eval (RemoveConstr n f) x)
+class GRemoveConstr (n :: Nat) (t :: Type) f g where
+  gRemoveConstr :: f x -> Either t (g x)
 
-instance GRemoveConstr n f => GRemoveConstr n (M1 i c f) where
+instance GRemoveConstr n t f g => GRemoveConstr n t (M1 i c f) (M1 i c g) where
   gRemoveConstr (M1 a) = M1 <$> gRemoveConstr @n a
 
-instance (If (n == 0) (() :: Constraint) (GRemoveConstr (n-1) g), IsBool (n == 0))
-  => GRemoveConstr n (f :+: g) where
-  gRemoveConstr = _If @(n == 0)
-    (\case
-      L1 a -> Left a
-      R1 b -> Right b)
-    (\case
-      L1 a -> Right (L1 a)
-      R1 b -> R1 <$> gRemoveConstr @(n-1) b)
+type ConstrArborify t l =
+  ( Generic t
+  , Coercible (UnM1 (Rep t)) (Rep t)
+  , GArborify (UnM1 (Rep t))
+  , Coercible l (Linearize (UnM1 (Rep t)))
+  )
 
-class GInsertConstr (n :: Nat) f where
-  gInsertConstr :: Either (Eval (ConstrAt n f) x) (Eval (RemoveConstr n f) x) -> f x
+constrArborify' :: forall t l x. ConstrArborify t l => l x -> t
+constrArborify' = to @t @x . coerce (gArborify @(UnM1 (Rep t)) @x)
 
-instance GInsertConstr n f => GInsertConstr n (M1 i c f) where
+instance ConstrArborify t l => GRemoveConstr 0 t (l :+: f) f where
+  gRemoveConstr (L1 a) = Left (constrArborify' a)
+  gRemoveConstr (R1 b) = Right b
+
+instance {-# OVERLAPPABLE #-}
+  ( GRemoveConstr (n-1) t f g, (n == 0) ~ 'False
+  , f0g ~ (f0 :+: g)
+  ) => GRemoveConstr n t (f0 :+: f) f0g where
+  gRemoveConstr (L1 a) = Right (L1 a)
+  gRemoveConstr (R1 b) = R1 <$> gRemoveConstr @(n-1) b
+
+class GInsertConstr (n :: Nat) (t :: Type) f g where
+  gInsertConstr :: Either t (f x) -> g x
+
+instance GInsertConstr n t f g => GInsertConstr n t (M1 i c f) (M1 i c g) where
   gInsertConstr = M1 . gInsertConstr @n . fmap unM1
 
-instance (If (n == 0) (() :: Constraint) (GInsertConstr (n-1) g), IsBool (n == 0))
-  => GInsertConstr n (f :+: g) where
-  gInsertConstr = _If @(n == 0)
-    (\case
-      Left a -> L1 a
-      Right b -> R1 b)
-    (\case
-      Left a -> R1 (gInsertConstr @(n-1) (Left a))
-      Right (L1 a) -> L1 a
-      Right (R1 b) -> R1 (gInsertConstr @(n-1) (Right b)))
+type ConstrLinearize t l =
+  ( Generic t
+  , Coercible (Rep t) (UnM1 (Rep t))
+  , GLinearize (UnM1 (Rep t))
+  , Coercible (Linearize (UnM1 (Rep t))) l
+  )
 
--- | Generate equality constraints between fields of two matching generic
--- representations.
-class MatchFields (f :: k -> *) (g :: k -> *)
-instance (g' ~ M1 D d g, MatchFields f g) => MatchFields (M1 D c f) g'
--- Forcing the MetaCons field
-instance (g' ~ M1 C ('MetaCons _cn _s _t) g, MatchFields f g)
-  => MatchFields (M1 C c f) g'
-instance (g' ~ M1 S d g, MatchFields f g) => MatchFields (M1 S c f) g'
-instance (g' ~ (g1 :+: g2), MatchFields f1 g1, MatchFields f2 g2)
-  => MatchFields (f1 :+: f2) g'
-instance (g' ~ (g1 :*: g2), MatchFields f1 g1, MatchFields f2 g2)
-  => MatchFields (f1 :*: f2) g'
-instance (g' ~ K1 j a) => MatchFields (K1 i a) g'
-instance (g' ~ U1) => MatchFields U1 g'
-instance (g' ~ V1) => MatchFields V1 g'
+constrLinearize' :: forall t l x. ConstrLinearize t l => t -> l x
+constrLinearize' = coerce (gLinearize @(UnM1 (Rep t)) @x) . from @t @x
+
+instance ConstrLinearize t l => GInsertConstr 0 t f (l :+: f) where
+  gInsertConstr (Left a) = L1 (constrLinearize' a)
+  gInsertConstr (Right b) = R1 b
+
+instance {-# OVERLAPPABLE #-}
+  ( GInsertConstr (n-1) t f g, (n == 0) ~ 'False
+  , f0f ~ (f0 :+: f)
+  ) => GInsertConstr n t f0f (f0 :+: g) where
+  gInsertConstr (Left a) = R1 (gInsertConstr @(n-1) @t @f @g (Left a))
+  gInsertConstr (Right (L1 a)) = L1 a
+  gInsertConstr (Right (R1 b)) = R1 (gInsertConstr @(n-1) @t @f @g (Right b))
+
+-- | Equate two generic representations, but ignoring constructor and field metadata.
+class MatchFields (f :: k -> Type) (g :: k -> Type)
+instance (g ~ M1 D c g', MatchFields f' g') => MatchFields (M1 D c f') g
+instance (g ~ M1 C ('MetaCons _x _y _z) g', MatchFields f' g') => MatchFields (M1 C c f') g
+instance (g ~ M1 S ('MetaSel _w _x _y _z) g', MatchFields f' g') => MatchFields (M1 S c f') g
+instance (g ~ (g1 :+: g2), MatchFields f1 g1, MatchFields f2 g2) => MatchFields (f1 :+: f2) g
+instance (g ~ (g1 :*: g2), MatchFields f1 g1, MatchFields f2 g2) => MatchFields (f1 :*: f2) g
+instance (g ~ K1 i a) => MatchFields (K1 i a) g
+instance (g ~ U1) => MatchFields U1 g
+instance (g ~ V1) => MatchFields V1 g
 
 class IsTuple (n :: Nat) (t :: k)
 instance (t ~ ())                    => IsTuple 0 t

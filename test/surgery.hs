@@ -11,9 +11,11 @@
 -- Many of these tests are more about ensuring things typecheck than really
 -- comparing their runtime results.
 
+#if __GLASGOW_HASKELL__ >= 802
 import Data.Bifunctor (second)
-import Data.Functor.Identity
-import GHC.Generics
+#endif
+import Data.Functor.Identity (Identity(..))
+import GHC.Generics hiding (R)
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -61,14 +63,14 @@ testRoundtrip = testGroup "roundtrip"
       rt (S 1 2 3) (fromORLazy . insertRField @"u'" . removeRField @"u'" . toORLazy)
   , testCase "SField-ins-rmv" $
       rt ((), S 1 2 3) (fmap fromORLazy . removeRField @"t" . insertRField @"t" @1 . fmap toORLazy)
--- Type error on 8.0
-#if __GLASGOW_HASKELL__ >= 802
+-- Type error on 8.2 and 8.4
+#if __GLASGOW_HASKELL__ <= 800 || __GLASGOW_HASKELL >= 806
   , testCase "Constr-rmv-ins" $
       rt A (fromOR . insertConstrT @"A" . removeConstrT @"A" . toOR)
-#endif
   , testCase "Constr-ins-rmv" $
       rt (Right A)
          (fmap fromOR . removeConstrT @"Z" . insertConstrT @"Z" @0 @() . fmap toOR)
+#endif
   ]
 
 testConsumer :: TestTree
@@ -104,10 +106,13 @@ testConsumer = testGroup "consumer"
       "[Right A,Left (Identity 0),Right (C 1 2 3 4 5)]" @?=
       (show . fmap (second (unit . fromOR') . removeConstrT @"B" . toOR))
         [A, B 0, C 1 2 3 4 5]
+#endif
 
   , testCase "insertConstr" $
       "B 0" @?= (show . fromOR @T . insertConstrT @"B" . Left) (Identity 0)
-#endif
+
+  , testCase "insertConstr (record)" $
+      "R {u = 0, v = 0, w = 0}" @?= (show . fromOR @R . insertConstr @"R" . Left) (0, 0, 0)
   ]
 
 testProducer :: TestTree
