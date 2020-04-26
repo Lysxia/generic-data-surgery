@@ -21,9 +21,9 @@ module Generic.Data.Surgery
     -- has a "Generic.Data.Microsurgery" module (since 0.4.0.0) to modify some
     -- metadata of generic representations.
     --
-    -- See also the documentation in that module about surgeries using
-    -- <https://hackage.haskell.org/package/generic-data generic-lens>,
-    -- when you want to /update/ fields, rather than remove or insert them.
+    -- If you only want to /update/ fields, rather than remove or insert them,
+    -- see also the documentation in the above module, on making surgeries out of
+    -- <https://hackage.haskell.org/package/generic-data generic-lens>.
 
     -- * Synthetic data types
 
