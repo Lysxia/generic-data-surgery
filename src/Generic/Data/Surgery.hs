@@ -4,9 +4,9 @@
 -- Functions in this module are expected to be used with visible type
 -- applications. Surgeries have a lot of type parameters, but usually only the
 -- first one to three type arguments need to be passed via @TypeApplications@.
--- Functions are annotated with \"functional dependencies\", with a meaning
--- similar to the homonymous GHC extension for type classes (click on
--- \"Details\" under each function to see those).
+-- Functions are documented with informal \"functional dependencies\",
+-- clarifying which type parameters can be inferred from which others
+-- (click on \"Details\" under each function to see those).
 --
 -- Remember that not all parameters to the left of a functional dependency
 -- arrow need to be annotated explicitly to determine those on the right. Some
