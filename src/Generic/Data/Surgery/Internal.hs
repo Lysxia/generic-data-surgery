@@ -48,6 +48,22 @@ import Generic.Data.Internal.Utils (coerce', absurd1)
 --
 -- @x@ corresponds to the last parameter of 'Rep', and is currently ignored by
 -- this module (no support for 'Generic1').
+--
+-- === General sketch
+--
+-- >
+-- >                toOR                       surgeries                    fromOR'
+-- > data MyType  -------->  OR (Rep MyType)  ---------->  OR alteredRep  --------->  Data alteredRep
+-- >                                                                                        |
+-- >                                                                                        | myGenericFun :: Generic a => a -> a
+-- >                fromOR                     surgeries                    toOR'           v
+-- > data MyType  <--------  OR (Rep MyType)  <----------  OR alteredRep  <---------  Data alteredRep
+-- >
+--
+-- If instead @myGenericFun@ is only a consumer of @a@ (resp. producer),
+-- then you only need the top half of the diagram (resp. bottom half).
+-- For example, in aeson:
+-- @genericToJSON@ (consumer), @genericParseJSON@ (producer).
 newtype OR (l :: k -> Type) (x :: k) = OR { unOR :: l x }
 
 -- | /Move fresh data to the Operating Room, where surgeries can be applied./
