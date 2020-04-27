@@ -25,6 +25,7 @@ data T = A | B Int | C Int Int Int Int Int deriving (Eq, Show, Generic)
 
 data P = P Int Int Int deriving (Eq, Show, Generic)
 data R = R { u, v, w :: Int } deriving (Eq, Show, Generic)
+data S = S { u' :: Int, v' :: !Int, w' :: {-# UNPACK #-} !Int } deriving (Eq, Show, Generic)
 
 main :: IO ()
 main = defaultMain test
@@ -56,6 +57,10 @@ testRoundtrip = testGroup "roundtrip"
       rt (R 1 2 3) (fromOR . insertRField @"u" . removeRField @"u" . toOR)
   , testCase "RField-ins-rmv" $
       rt ((), R 1 2 3) (fmap fromOR . removeRField @"t" . insertRField @"t" @1 . fmap toOR)
+  , testCase "SField-rmv-ins" $
+      rt (S 1 2 3) (fromORLazy . insertRField @"u'" . removeRField @"u'" . toORLazy)
+  , testCase "SField-ins-rmv" $
+      rt ((), S 1 2 3) (fmap fromORLazy . removeRField @"t" . insertRField @"t" @1 . fmap toORLazy)
 -- Type error on 8.0
 #if __GLASGOW_HASKELL__ >= 802
   , testCase "Constr-rmv-ins" $
@@ -76,6 +81,10 @@ testConsumer = testGroup "consumer"
       "R {u = 1, w = 3}" @?=
       (show' . fromOR' . snd . removeRField @"v" . toOR) (R 1 2 3)
 
+  , testCase "removeSField" $
+      "S {u' = 1, w' = 3}" @?=
+      (show' . fromOR' . snd . removeRField @"v'" . toORLazy) (S 1 2 3)
+
   , testCase "insertCField" $
       "P 1 () 2 3" @?=
       (show' . fromOR' . insertCField' @1 () . toOR) (P 1 2 3)
@@ -83,6 +92,10 @@ testConsumer = testGroup "consumer"
   , testCase "insertRField" $
       "R {u = 1, n = (), v = 2, w = 3}" @?=
       (show' . fromOR' . insertRField' @"n" @1 () . toOR) (R 1 2 3)
+
+  , testCase "insertSField" $
+      "S {u' = 1, n' = (), v' = 2, w' = 3}" @?=
+      (show' . fromOR' . insertRField' @"n'" @1 () . toORLazy) (S 1 2 3)
 
 -- Loops on 8.0
 #if __GLASGOW_HASKELL__ >= 802
@@ -107,13 +120,21 @@ testProducer = testGroup "producer"
       R 0 0 0 @?=
         (fromOR . snd . removeRField @"v" @1 @[Int] . toOR') def
 
+  , testCase "removeSField" $
+      S 0 0 0 @?=
+        (fromORLazy . snd . removeRField @"v'" @1 @[Int] . toOR') def
+
   , testCase "insertCField" $
       P 0 9 0 @?=
         (fromOR . insertCField' @1 9 . toOR') def
 
-  , testCase "insertCField" $
+  , testCase "insertRField" $
       R 0 9 0 @?=
         (fromOR . insertRField' @"v" 9 . toOR') def
+
+  , testCase "insertSField" $
+      S 0 9 0 @?=
+        (fromORLazy . insertRField' @"v'" 9 . toOR') def
 
   , testCase "removeConstr" $
       Right A @?=
