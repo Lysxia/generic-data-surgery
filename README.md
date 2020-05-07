@@ -1,4 +1,4 @@
-# Surgery for generic data types [![Hackage](https://img.shields.io/hackage/v/generic-data-surgery.svg)](https://hackage.haskell.org/package/generic-data-surgery) [![Build Status](https://travis-ci.org/Lysxia/generic-data-surgery.svg)](https://travis-ci.org/Lysxia/generic-data-surgery)
+# Surgery for generic data types [![Hackage](https://img.shields.io/hackage/v/generic-data-surgery.svg)](https://hackage.haskell.org/package/generic-data-surgery) [![GitHub CI](https://github.com/Lysxia/generic-data-surgery/workflows/CI/badge.svg)](https://github.com/Lysxia/generic-data-surgery/actions)
 
 Modify, add, or remove constructors and fields in generic types, to be used
 with generic implementations.
