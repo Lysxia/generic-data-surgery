@@ -64,6 +64,10 @@ instance ToJSON Foo where
       (checksum f, f)
 ```
 
-See also the
-[`examples/`](https://github.com/Lysxia/generic-data-surgery/tree/master/examples)
-directory in the source repo.
+## See also
+
+- [*Surgery for data types*](https://blog.poisson.chat/posts/2018-11-26-type-surgery.html),
+  introductory blog post with another example.
+
+- The [`examples/`](https://github.com/Lysxia/generic-data-surgery/tree/master/examples)
+  directory in the source repo.
