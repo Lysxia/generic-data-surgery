@@ -41,6 +41,24 @@ test-suite surgery-test
   default-language: Haskell2010
   type: exitcode-stdio-1.0
 
+test-suite synthetic-test
+  hs-source-dirs: test
+  main-is: synthetic.hs
+  build-depends:
+    tasty,
+    tasty-hunit,
+    generic-data,
+    generic-data-surgery,
+    show-combinators >= 0.2,
+    -- ^ avoid a bug
+    base
+  if !impl(ghc >= 8.6)
+    build-depends:
+      contravariant
+  ghc-options: -Wall
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+
 source-repository head
   type:     git
   location: https://github.com/Lysxia/generic-data-surgery

@@ -69,6 +69,12 @@ module Generic.Data.Surgery
     --
     -- Note that @()@ and 'Data.Functor.Identity.Identity' can be used as an
     -- empty and a singleton tuple type respectively.
+
+  , removeConstr
+  , insertConstr
+  , modifyConstr
+
+    -- *** Constructors as tuples
     --
     -- When the tuple type can't be inferred and doesn't really matter,
     -- an alternative to explicit type annotations is to use the @...ConstrT@
@@ -76,17 +82,51 @@ module Generic.Data.Surgery
     -- (@()@, 'Data.Functor.Identity.Identity', @(,)@, @(,,)@, up to 7 ---
     -- because that's where 'GHC.Generics.Generic' instances currently stop).
 
-  , removeConstr
-  , insertConstr
-  , modifyConstr
   , removeConstrT
   , insertConstrT
   , modifyConstrT
 
+    -- * Surgeries as type-level operations
+
+    -- | Example usage: define a synthetic type which adds a @\"key\"@ field of type @Key@
+    -- to an existing record type.
+    --
+    -- @
+    -- -- Define the surgery to insert a field (key :: Key)
+    -- -- as the first field (index 0) of a record.
+    -- type InsertId = ('InsertField' 0 (''Just' \"key\") Key :: 'MajorSurgery' k)
+    --
+    -- -- Define a newtype for synthetic ('Data') types obtained from a real type @a@
+    -- -- using the @InsertId@ surgery we just defined.
+    -- newtype WithKey a = WithKey ('Data' ('Operate' ('GHC.Generics.Rep' a) InsertId) ())
+    -- @
+
+    -- ** Types and composition
+
+    -- |
+    -- === Implementation notes
+    --
+    -- The implementation of these type synonyms is hidden behind names
+    -- suffixed with an underscore. Although they appear in the haddocks,
+    -- these auxiliary names are internal and not exported by this module.
+
+  , MajorSurgery
+  , Perform
+  , Operate
+  , (:>>)
+  , IdSurgery
+
+    -- ** Surgeries
+  , InsertField
+  , RemoveField
+  , RemoveRField
+  , InsertConstrAt
+  , RemoveConstr
+  , Suture
+
     -- * Constraint synonyms
 
     -- | Hiding implementation details from the signatures above.
-    -- Useful to compose surgeries in a reusable way.
 
     -- ** Conversions
 

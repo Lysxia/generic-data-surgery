@@ -8,6 +8,7 @@
     TypeApplications #-}
 
 import Data.Aeson
+import Data.Aeson.Types (omitNothingFields)
 import GHC.Generics (Generic)
 import Generic.Data.Surgery (fromOR, toOR', modifyRField)
 
