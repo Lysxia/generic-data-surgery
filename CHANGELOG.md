@@ -1,3 +1,7 @@
+# 0.3.0.0
+
+- Make surgeries first-class at the type level (`MajorSurgery`)
+
 # 0.2.1.0
 
 - Add `toORLazy` and `fromORLazy`, to clean up data types with strictness
