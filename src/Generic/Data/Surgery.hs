@@ -23,7 +23,7 @@ module Generic.Data.Surgery
     --
     -- If you only want to /update/ fields, rather than remove or insert them,
     -- see also the documentation in the above module, on making surgeries out of
-    -- <https://hackage.haskell.org/package/generic-data generic-lens>.
+    -- <https://hackage.haskell.org/package/generic-data/docs/Generic-Data-Microsurgery.html#g:1 generic-lens>.
 
     -- * Synthetic data types
 
