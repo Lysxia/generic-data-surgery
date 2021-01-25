@@ -1,6 +1,7 @@
-resolver: lts-15.11
+resolver: lts-16.31
 packages:
 - '.'
 - 'examples/'
 extra-deps:
-- 'show-combinators-0.2.0.0'
+- 'ap-normalize-0.1.0.0'
+- 'generic-functor-0.2.0.0'
